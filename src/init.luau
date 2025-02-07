@@ -9,6 +9,7 @@ local Players = game:GetService("Players")
 local ObserveTag = require(script.ObserveTag)
 local QuickScale = require(script.QuickScale)
 local Racoon = require(script.Racoon)
+local Glow = require(script.Glow)
 
 --[=[
     @param tag string -- The tag to observe
@@ -19,8 +20,8 @@ ObserveTag("QuickScaleElement", function(uiScale, racoon)
 	if not uiScale:IsDescendantOf(Players) then
 		return
 	end
-
-	assert(uiScale:IsA("UIScale"), `{uiScale} is already being Tracked.`)
+	
+	Glow.Assert(uiScale:IsA("UIScale"), `{Glow.FormatValue(uiScale)} is not a UIScale.`)
 	local quickScale = QuickScale.new(uiScale)
 
 	local parent = uiScale.Parent
