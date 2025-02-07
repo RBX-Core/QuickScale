@@ -3,7 +3,9 @@ QuickScale v1.25 – The Best UI Scaling Tool for Roblox!
 Struggling with UI scaling? QuickScale makes it easy!
 
 ✅ Scales everything: UIStrokes, UIScale, AutomaticSize, Paddings, and more!
+
 ✅ Optimized for smooth performance
+
 ✅ Works on any screen size
 
 No more messy UI adjustments QuickScale does it all for you!
