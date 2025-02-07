@@ -4,10 +4,13 @@
 ]=]
 
 local GuiService = game:GetService("GuiService")
+local CurrentCamera = workspace.CurrentCamera
+
 local DEFAULT_SCREEN_SIZE = Vector2.new(1280, 720)
 local DEFAULT_SCALE_BOUNDS = NumberRange.new(0, math.huge)
 local DEFAULT_FACTOR = 1
-local CurrentCamera = workspace.CurrentCamera
+
+local Glow = require(script.Parent.Glow)
 
 --[=[
     @param size Vector2 -- The size to calculate scale for
@@ -95,6 +98,7 @@ function QuickScale.Update(self: QuickScale): ()
 	if not gui then
 		return
 	end
+	
 	local scaleParams = self:GetScaleParams()
 	local sizeProperty = scaleParams.Location.AbsoluteSize and "AbsoluteSize" or "ViewportSize"
 	local size = scaleParams.Location[sizeProperty]
@@ -120,7 +124,7 @@ end
     Starts tracking UI scale changes
 ]=]
 function QuickScale.Track(self: QuickScale): ()
-	assert(not self._isTracking, `{self._uiScale} is already being Tracked.`)
+	Glow.Assert(not self._isTracking, `{Glow.FormatValue(self._uiScale)} is already being Tracked.`)
 
 	local uiScale = self._uiScale :: UIScale
 	self:Update()
