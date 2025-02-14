@@ -1,42 +1,40 @@
---[=[
-    @class ObserveTag
-    Module that handles tag-based instance observation and callbacks.
-]=]
-
 local CollectionService = game:GetService("CollectionService")
-local Racoon = require(script.Parent.Racoon)
+local Maid = require(script.Parent.Maid)
 
---[=[
-    @param tag string -- The tag to observe
-    @param callback function -- Callback function to run when tagged instances are found
-    @return function -- Cleanup function
-]=]
-return function(tag: string, callback: (instance: Instance, racoon: Racoon.Racoon) -> ())
-	local mainRacoon = Racoon.new()
-	local racoons = {}
+return function(
+	tag: string,
+	callback: (instance: Instance, maid: Maid.Maid) -> (),
+	predicate: ((instance: Instance) -> boolean)?
+)
+	local instances = {}
+	local topMaid = Maid.new()
 
-	for _, instance in CollectionService:GetTagged(tag) do
-		racoons[instance] = Racoon.new()
-		callback(instance, racoons[instance])
-	end
-
-	mainRacoon:Add(CollectionService:GetInstanceAddedSignal(tag):Connect(function(instance)
-		racoons[instance] = Racoon.new()
-		callback(instance, racoons[instance])
-	end))
-
-	mainRacoon:Add(CollectionService:GetInstanceRemovedSignal(tag):Connect(function(instance)
-		racoons[instance]:Clean()
-		racoons[instance] = nil
-	end))
-
-	return function()
-		mainRacoon:Clean()
-		for _, racoon in racoons do
-			racoon:Destroy()
+	local function onInstanceAdded(instance: Instance)
+		if predicate and not predicate(instance) then
+			return
 		end
-
-		table.clear(racoons)
-		mainRacoon = nil
+		
+		instances[instance] = Maid.new()
+		callback(instance, instances[instance])
+	end
+	
+	for _, instance in CollectionService:GetTagged(tag) do
+		task.spawn(onInstanceAdded, instance)
+	end
+	
+	topMaid:Add(CollectionService:GetInstanceAddedSignal(tag):Connect(onInstanceAdded))
+	
+	topMaid:Add(CollectionService:GetInstanceRemovedSignal(tag):Connect(function(instance)
+		local trove = instances[instance]
+		if not trove then
+			return
+		end
+		
+		trove:Destroy()
+		instances[instance] = nil
+	end))
+	
+	return function()
+		topMaid:Destroy()
 	end
 end
