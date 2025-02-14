@@ -11,5 +11,4 @@ Credits:
 - Serokai: Runtime Script
 - Littensy: Some of his icons
 
-
 [Try it now](https://create.roblox.com/store/asset/114904630025377/QuickScale) and make your UI look perfect on any device! 🚀
