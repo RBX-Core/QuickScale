@@ -40,9 +40,7 @@ if script:GetAttribute("Credits") then
 	print("This game uses QuickScale to automatically scale its interfaces")
 end
 
-local GuiService = game:GetService("GuiService")
-local Workspace = game:GetService("Workspace")
-local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
 
 local ObserveTag = require(script.ObserveTag)
 local Maid = require(script.Maid)
@@ -51,13 +49,14 @@ local DEFAULT_SCREEN_SIZE = Vector2.new(1280, 720)
 local DEFAULT_SCALE_BOUNDS = NumberRange.new(0, math.huge)
 local DEFAULT_FACTOR = 1
 
-local currentCamera = Workspace.CurrentCamera
+local currentCamera = workspace.CurrentCamera
 
---[=[
-    @param size Vector2 -- The size to calculate scale for
-    @param params ScaleParams -- Scale parameters
-    @return number -- Calculated scale value
-]=]
+--[[
+	<strong>Calculates the scale value based on given parameters.</strong>
+	<code>@param size Vector2</code>: The size to calculate scale for
+	<code>@param params ScaleParams</code>: Scale parameters
+	<code>@return number</code>: Calculated scale value
+]]
 local function calculateScale(size: Vector2, params: ScaleParams): number
 	local screenSize = params.ScreenSize or DEFAULT_SCREEN_SIZE
 	local scaleBounds = params.ScaleBounds or DEFAULT_SCALE_BOUNDS
@@ -71,18 +70,31 @@ end
 local QuickScale = {}
 QuickScale.__index = QuickScale
 
-function QuickScale.Init(tag: string?, descendantOf: Instance?, locationValue)
-	ObserveTag(tag or "QuickScaleElement", function(uiScale, maid)
+--[[
+	<strong>Initializes QuickScale tracking for a specified tag.</strong>
+	<code>@param tag string?</code>: The tag to observe for UI scaling
+	<code>@param locationValue Instance?</code>: The location instance for UI elements
+]]
+function QuickScale.Init(tag: string?, locationValue)
+	return ObserveTag(tag or "QuickScaleElement", function(uiScale, maid)
 		local location = uiScale:FindFirstChild("Location")
-		assert(location and location:IsA("ObjectValue"), "Location is not a ObjectValue.")
+		if not location then
+			warn(`Missing ObjectValue 'Location' in {uiScale:GetFullName()}`)
+			return
+		end
+
+		if not location:IsA("ObjectValue") then
+			warn(location:GetFullName(), "is not an ObjectValue")
+			return
+		end
 
 		local quickScale = QuickScale.new(uiScale :: UIScale)
 		quickScale:Track()
-		
-		if locationValue and location.Value and not location.Value:IsDescendantOf(descendantOf or Players) then
+
+		if locationValue and location.Value and not location.Value:IsDescendantOf(StarterGui) then
 			location.Value = locationValue
 		end
-		
+
 		for _, descendant in (uiScale.Parent :: Instance):GetDescendants() do
 			if descendant:IsA("UITextSizeConstraint") then
 				quickScale:AddTextSizeConstraint(descendant)
@@ -98,15 +110,16 @@ function QuickScale.Init(tag: string?, descendantOf: Instance?, locationValue)
 			return false
 		end
 
-		return instance:IsDescendantOf(descendantOf or Players)
+		return not instance:IsDescendantOf(StarterGui)
 	end)
 end
 
---[=[
-    @param uiScale UIScale -- The UIScale instance to manage
-    @return QuickScale -- New QuickScale instance
-]=]
-function QuickScale.new(uiScale: UIScale)
+--[[
+	<strong>Creates a new QuickScale instance.</strong>
+	<code>@param uiScale UIScale</code>: The UIScale instance to manage
+	<code>@return QuickScale</code>: New QuickScale instance
+]]
+function QuickScale.new(uiScale: UIScale): QuickScale
 	return setmetatable({
 		_uiScale = uiScale,
 		_maid = Maid.new(),
@@ -115,55 +128,52 @@ function QuickScale.new(uiScale: UIScale)
 	}, QuickScale)
 end
 
---[=[
-    @return ScaleParams -- Current scale parameters
-]=]
+--[[
+	<strong>Returns the current scale parameters.</strong>
+	<code>@return ScaleParams</code>: Current scale parameters
+]]
 function QuickScale.GetScaleParams(self: QuickScale): ScaleParams
 	local location = self._uiScale:FindFirstChild("Location")
-	assert(typeof(location) == "Instance" and location:IsA("ObjectValue"), "ObjectValue 'Location' not found")
-	
+
 	return {
 		ScreenSize = self._uiScale:GetAttribute("ScreenSize") :: Vector2,
 		ScaleBounds = self._uiScale:GetAttribute("ScaleBounds") :: NumberRange,
 		Factor = self._uiScale:GetAttribute("Factor") :: number,
-		Location = (location and location.Value or
+		Location = (location and (location:: any).Value or
 			(self._uiScale:FindFirstChildOfClass("GuiBase") or self._uiScale.Parent)) :: GuiBase2d
 	}
 end
 
---[=[
-    @param textSizeConstraint UITextSizeConstraint -- The constraint to add
-]=]
+--[[
+	<strong>Adds a text size constraint.</strong>
+	<code>@param textSizeConstraint UITextSizeConstraint</code>: The constraint to add
+]]
 function QuickScale.AddTextSizeConstraint(self: QuickScale, textSizeConstraint: UITextSizeConstraint): ()
 	self._textSizeConstraint[textSizeConstraint] = true
 	self:Update()
 end
 
---[=[
-    @param textSizeConstraint UITextSizeConstraint -- The constraint to remove
-]=]
+--[[
+	<strong>Removes a text size constraint.</strong>
+	<code>@param textSizeConstraint UITextSizeConstraint</code>: The constraint to remove
+]]
 function QuickScale.RemoveTextSizeConstraint(self: QuickScale, textSizeConstraint: UITextSizeConstraint): ()
 	self._textSizeConstraint[textSizeConstraint] = nil
 end
 
---[=[
-    Updates the scale and text size constraints
-]=]
+--[[
+	<strong>Updates the UI scale and text size constraints.</strong>
+]]
 function QuickScale.Update(self: QuickScale): ()
-	if not self._uiScale:FindFirstAncestorWhichIsA("GuiBase2d") then
-		return
-	end
-	
 	local scaleParams = self:GetScaleParams()
 	local result = calculateScale(scaleParams.Location.AbsoluteSize, scaleParams)
 	self._uiScale.Scale = result
 
 	for constraint in self._textSizeConstraint do
-		local sizeRange = constraint:GetAttribute("TextSizeRange")
-
-		if typeof(sizeRange) == "NumberRange" then
-			constraint.MinTextSize = sizeRange.Min * self._uiScale.Scale
-			constraint.MaxTextSize = sizeRange.Max * self._uiScale.Scale
+		local sizeBounds = constraint:GetAttribute("TextSizeBounds")
+		if typeof(sizeBounds) == "NumberRange" then
+			constraint.MinTextSize = sizeBounds.Min * result
+			constraint.MaxTextSize = sizeBounds.Max * result
 		end
 	end
 
@@ -173,10 +183,14 @@ function QuickScale.Update(self: QuickScale): ()
 end
 
 --[=[
-    Starts tracking UI scale changes
+   <strong>Starts tracking UI scale changes</strong>
 ]=]
 function QuickScale.Track(self: QuickScale): ()
-	assert(not self._isTracking, "UIScale is already being tracked")
+	if self._isTracking then
+		warn(self._uiScale:GetFullName(),"is already being tracked")
+		return
+	end
+
 	self:Update()
 
 	self._maid:Add(self._uiScale.AttributeChanged:Connect(function()
@@ -186,7 +200,7 @@ function QuickScale.Track(self: QuickScale): ()
 	self._maid:Add(self._uiScale:GetPropertyChangedSignal("Parent"):Connect(function()
 		self:Update()
 	end))
-	
+
 	local location = self._uiScale:FindFirstChild("Location")
 	if location then
 		self._maid:Add(location.Changed:Connect(function()
@@ -198,10 +212,20 @@ function QuickScale.Track(self: QuickScale): ()
 end
 
 --[=[
-    Cleans up the QuickScale instance
+   <strong>Stop tracking UI scale changes</strong>
+]=]
+function QuickScale.UnTrack(self: QuickScale): ()
+	self._maid:DoCleaning()
+end
+
+--[=[
+    <strong>Cleans up the QuickScale instance</strong>
 ]=]
 function QuickScale.Destroy(self: QuickScale): ()
-	self._maid:Destroy()
+	self:UnTrack()
+	
+	table.clear(self:: any)
+	setmetatable(self:: any, nil)
 end
 
 export type QuickScale = typeof(setmetatable({} :: {
