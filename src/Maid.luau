@@ -21,10 +21,20 @@
 	@class Maid
 ]=]
 
+export type Task = () -> ()
+| thread
+| Instance
+| RBXScriptConnection
+| {Destroy: () -> () & any}
+
 export type Maid = typeof(setmetatable({} :: {
-	Add: (self: Maid, item: any) -> (),
+	Add: <T>(self: Maid, task: T & Task) -> T,
+	GiveTask: (self: Maid, task: Task) -> number,
+	GivePromise: <T>(self: Maid, promise: T & any) -> (),
+	Task: (self: Maid) -> (),
+	DoCleaning: (self: Maid) -> (),
 	Destroy: (self: Maid) -> (),
-}, Maid))
+}, {}))
 
 local Maid = {}
 Maid.ClassName = "Maid"
