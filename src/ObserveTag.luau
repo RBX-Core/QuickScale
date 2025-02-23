@@ -5,7 +5,7 @@ return function(
 	tag: string,
 	callback: (instance: Instance, maid: Maid.Maid) -> (),
 	predicate: ((instance: Instance) -> boolean)?
-)
+): Maid.Maid
 	local instances = {}
 	local topMaid = Maid.new()
 
@@ -23,18 +23,15 @@ return function(
 	end
 	
 	topMaid:Add(CollectionService:GetInstanceAddedSignal(tag):Connect(onInstanceAdded))
-	
 	topMaid:Add(CollectionService:GetInstanceRemovedSignal(tag):Connect(function(instance)
-		local trove = instances[instance]
-		if not trove then
+		local maid = instances[instance]
+		if not maid then
 			return
 		end
 		
-		trove:Destroy()
+		maid:Destroy()
 		instances[instance] = nil
 	end))
 	
-	return function()
-		topMaid:Destroy()
-	end
+	return topMaid
 end
